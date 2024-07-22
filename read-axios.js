@@ -1,14 +1,13 @@
 /**
- * puppeteer 获取 动态加载的网页内容
- * 网络状态不好，影响网页内容读取
+ * axios 无法获取 动态加载的网页内容
  */
+
 import main from "./com-config/index.js";
-import puppeteer from "puppeteer";
+import axios from "axios";
 import cheerio from "cheerio";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
-import { queue } from "async";
 
 // 获取当前模块文件的路径
 const __filename = fileURLToPath(import.meta.url);
@@ -16,92 +15,57 @@ const __filename = fileURLToPath(import.meta.url);
 // 获取当前模块文件所在的目录
 const __dirname = path.dirname(__filename);
 
-// 创建一个浏览器实例
-const createBrowser = async () => {
-  return await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    timeout: 100000,
-    executablePath:
-      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-  });
-};
-
-// 创建一个任务队列，限制同时运行的任务数量
-const queueObj = queue(async (task, callback) => {
-  const browser = await createBrowser();
-  await getSingleEntireProps(browser, task.key, task.item);
-  await browser.close();
-  callback();
-}, 2); // 这里限制同时运行 2 个任务
-
-// 处理单个页面的函数
-async function getSingleEntireProps(browser, pathName, item) {
-  const page = await browser.newPage();
-  // 禁用图片和CSS加载
-  await page.setRequestInterception(true);
-  page.on("request", (request) => {
-    if (["image"].includes(request.resourceType())) {
-      request.abort();
-    } else {
-      request.continue();
-    }
-  });
+async function getSingleEntireProps(pathName, item) {
   const { document, name, props } = item;
   const url = `https://bkui-vue.woa.com/${getUrlTail(document) || name}`;
-  try {
-    await page.goto(url, { waitUntil: "networkidle2" }); // 替换为你要读取的页面网址
-    // 获取页面内容
-    const content = await page.content();
-    const $ = cheerio.load(content);
-    let table = null;
-    const commonBoxes = $(".common-box").has(".header-title");
-    // 使用正则表达式筛选出文本内容以“属性”结尾的 .common-box 元素
-    const selectedBoxes = commonBoxes.filter((index, element) => {
-      const headerTitle = $(element).find(".header-title").text().trim();
-      return /属性$/.test(headerTitle);
+  // 获取页面内容
+  const res = await axios.get(url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    },
+  });
+  console.log(res.data, ";;;");
+  const $ = cheerio.load(res.data);
+  let table = null;
+  const commonBoxes = $(".common-box").has(".header-title");
+  // 使用正则表达式筛选出文本内容以“属性”结尾的 .common-box 元素
+  const selectedBoxes = commonBoxes.filter((index, element) => {
+    const headerTitle = $(element).find(".header-title").text().trim();
+    return /属性$/.test(headerTitle);
+  });
+  // 输出筛选出的元素
+  selectedBoxes.each((index, element) => {
+    !index ? (table = $(element).first().find("table")) : null;
+  });
+  const formatProps = Object.keys(props).map((item) => camelCase(item));
+  // 提取表格数据
+  const tableData = {};
+  //   !table && console.log(`${name}属性`);
+  table &&
+    table.find("tbody tr").map((_, row) => {
+      const columns = $(row)
+        .find("td")
+        .map((_, col) => $(col).text().trim())
+        .get();
+      const key = camelCase(columns[0]);
+      if (
+        !formatProps.includes(key) &&
+        !(
+          key.includes("modelValue") &&
+          (formatProps.includes("modelValue") || formatProps.includes("vModel"))
+        )
+      ) {
+        tableData[key] = {
+          type: columns[2],
+          options: [columns[3]],
+          val: columns[4],
+          displayName: columns[1],
+          tips: columns[1],
+        };
+      }
     });
-
-    // 输出筛选出的元素
-    selectedBoxes.each((index, element) => {
-      !index ? (table = $(element).first().find("table")) : null;
-    });
-    const formatProps = Object.keys(props).map((item) => camelCase(item));
-    // 提取表格数据
-    const tableData = {};
-    !table && console.log(`${name}属性`);
-    table &&
-      table.find("tbody tr").map((_, row) => {
-        const columns = $(row)
-          .find("td")
-          .map((_, col) => $(col).text().trim())
-          .get();
-        const key = camelCase(columns[0]);
-        if (
-          !formatProps.includes(key) &&
-          !(
-            key.includes("modelValue") &&
-            (formatProps.includes("modelValue") ||
-              formatProps.includes("vModel"))
-          )
-        ) {
-          const opVal = [];
-          opVal.push(columns[3]);
-          tableData[key] = {
-            type: columns[2].toLocaleLowerCase(),
-            options: opVal,
-            val: columns[4]?.replace(/'/g, '"'),
-            displayName: columns[1].replace(/\s+/g, ""),
-            tips: columns[1].replace(/\s+/g, ""),
-          };
-        }
-      });
-    JSON.stringify(tableData) !== "{}" && writePropsStr(pathName, tableData);
-  } catch (error) {
-    console.error("Error:", pathName);
-  } finally {
-    await page.close();
-  }
+  JSON.stringify(tableData) !== "{}" && writePropsStr(pathName, tableData);
 }
 
 const camelCase = function (name) {
@@ -186,7 +150,7 @@ function findClosingBraceIndex(str, startIndex) {
 // 插入缺少的属性
 function insertProp(prop, val) {
   let propStr = `${prop}`;
-  if (propStr.includes("-") || propStr.includes(".")) {
+  if (propStr.includes("-")) {
     propStr = `'${propStr}'`;
   }
   const tabHalf = " ".repeat(4);
@@ -196,17 +160,13 @@ function insertProp(prop, val) {
 }
 (async () => {
   const bkVue3ComponentList = await main().catch(console.error);
-  Object.keys(bkVue3ComponentList).forEach((key, index) => {
+  Object.keys(bkVue3ComponentList).forEach(async (key) => {
     const item = bkVue3ComponentList[key];
-    // if (item.name === "sideslider") {
-    if (item.type.includes("bk-") && !item.type.includes("chart")) {
-      queueObj.push({ key, item });
+    if (item.name === "search-select") {
+      if (item.type.includes("bk-") && !item.type.includes("chart")) {
+        await getSingleEntireProps(key, item);
+      }
     }
-    // }
   });
 })();
 
-// 所有任务完成后的回调函数
-queueObj.drain(() => {
-  console.log("All tasks have been processed");
-});

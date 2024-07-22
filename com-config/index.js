@@ -22,12 +22,9 @@ const importModulesRecursively = async (dir) => {
   }
   return modules;
 };
-let modules = null
-const main = async () => {
+
+export default async function main() {
   const modulesDir = join(__dirname, "bk");
-  modules = await importModulesRecursively(modulesDir);
-};
-
-main().catch(console.error);
-
-export default modules
+  const modules = await importModulesRecursively(modulesDir);
+  return modules;
+}
