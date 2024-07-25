@@ -80,9 +80,8 @@ async function getSingleEntireProps(browser, pathName, item) {
         if (
           !formatProps.includes(key) &&
           !(
-            key.includes("modelValue") &&
-            (formatProps.includes("modelValue") ||
-              formatProps.includes("vModel"))
+            (key.includes("modelValue") || key.includes("vModel")) &&
+            formatProps.includes("modelValue")
           )
         ) {
           const opVal = [];
@@ -192,7 +191,14 @@ function insertProp(prop, val) {
   const tabHalf = " ".repeat(4);
   const tab = tabHalf.repeat(2);
   const tabOneHalf = tabHalf.repeat(3);
-  return `${tab}${propStr}: {\n${tabOneHalf}type: '${val.type}',\n${tabOneHalf}options: '${val.options}',\n${tabOneHalf}val: '${val.val}',\n${tabOneHalf}displayName: '${val.displayName}',\n${tabOneHalf}tips: '${val.tips}'\n${tab}}`;
+  return `${tab}${propStr}: {\n${tabOneHalf}type: '${
+    val.type
+  }',\n${tabOneHalf}options: ${JSON.stringify(val.options).replace(
+    /"/g,
+    "'"
+  )},\n${tabOneHalf}val: '${val.val}',\n${tabOneHalf}displayName: '${
+    val.displayName
+  }',\n${tabOneHalf}tips: '${val.tips}'\n${tab}}`;
 }
 (async () => {
   const bkVue3ComponentList = await main().catch(console.error);

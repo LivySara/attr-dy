@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node read-puppeteer.js"
+    "start": "node read-puppeteer1.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +15,7 @@
     "async": "^3.2.5",
     "axios": "^1.7.2",
     "cheerio": "^1.0.0-rc.12",
+    "prettier": "^3.3.3",
     "puppeteer": "^22.13.1"
   }
 }
