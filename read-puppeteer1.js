@@ -9,7 +9,7 @@ import prettier from "prettier";
 // 获取当前文件的目录
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const tableConfigPath = path.join(__dirname, "./com-config/bk/table/index.js");
+const tableConfigPath = path.join(__dirname, "./com-config-vue3/bk/table/index.js");
 
 // 网页 URL
 const url = "https://bkui-vue.woa.com/table";

@@ -2,7 +2,7 @@
  * puppeteer 获取 动态加载的网页内容
  * 网络状态不好，影响网页内容读取
  */
-import main from "./com-config/index.js";
+import main from "./com-config-vue3/index.js";
 import puppeteer from "puppeteer";
 import cheerio from "cheerio";
 import path from "path";
